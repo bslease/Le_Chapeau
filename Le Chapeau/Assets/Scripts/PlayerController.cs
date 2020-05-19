@@ -4,7 +4,7 @@ using UnityEngine;
 using Photon.Pun;
 using Photon.Realtime;
 
-public class PlayerController : MonoBehaviourPunCallbacks
+public class PlayerController : MonoBehaviourPunCallbacks, IPunObservable
 {
     [HideInInspector]
     public int id;
@@ -43,10 +43,29 @@ public class PlayerController : MonoBehaviourPunCallbacks
 
     private void Update()
     {
-        Move();
+        if (photonView.IsMine)
+        {
+            Move();
 
-        if (Input.GetKeyDown(KeyCode.Space))
-            TryJump();
+            if (Input.GetKeyDown(KeyCode.Space))
+                TryJump();
+
+            // track the amount of time we're wearing the hat
+            if (hatObject.activeInHierarchy)
+            {
+                curHatTime += Time.deltaTime;
+            }
+        }
+
+        // if I'm the game host, check to see if this player has won
+        if (PhotonNetwork.IsMasterClient)
+        {
+            if (curHatTime >= GameManager.instance.timeToWin && !GameManager.instance.gameEnded)
+            {
+                GameManager.instance.gameEnded = true;
+                GameManager.instance.photonView.RPC("WinGame", RpcTarget.All, id);
+            }
+        }
     }
 
     void Move()
@@ -84,6 +103,19 @@ public class PlayerController : MonoBehaviourPunCallbacks
                     GameManager.instance.photonView.RPC("GiveHat", RpcTarget.All, id, false);
                 }
             }
+        }
+    }
+
+    // from IPunObservable - allows us to send and receive data
+    public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
+    {
+        if (stream.IsWriting)
+        {
+            stream.SendNext(curHatTime); // send info about this playercontroller to others
+        }
+        else if (stream.IsReading)
+        {
+            curHatTime = (float)stream.ReceiveNext(); // receive info about this playercontroller from others
         }
     }
 }

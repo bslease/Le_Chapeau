@@ -91,4 +91,22 @@ public class GameManager : MonoBehaviourPunCallbacks
         else
             return false;
     }
+
+    [PunRPC]
+    void WinGame(int playerId)
+    {
+        gameEnded = true;
+        PlayerController player = GetPlayer(playerId);
+
+        // set the UI to show who's won
+        GameUI.instance.SetWinText(player.photonPlayer.NickName);
+
+        Invoke("GoBackToMenu", 3.0f);
+    }
+
+    void GoBackToMenu()
+    {
+        PhotonNetwork.LeaveRoom();
+        NetworkManager.instance.ChangeScene("Menu");
+    }
 }
